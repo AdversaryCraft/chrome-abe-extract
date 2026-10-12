@@ -44,7 +44,7 @@ This technique is documented in [CyberArk Labs' C4 research](https://web.archive
 
 ## Build
 
-**Prerequisites:** Visual Studio 2022 with the Desktop development with C++ workload, plus the SQLite amalgamation which is already available in this repo (`sqlite3.c` and `sqlite3.h`).
+**Prerequisites:** Visual Studio 2022 with the Desktop development with C++ workload, plus the SQLite amalgamation which is already available in this repo (`sqlite3.c` and `sqlite3.h`)
 .
 
 Open the **x64 Native Tools Command Prompt for VS 2022** and run:
