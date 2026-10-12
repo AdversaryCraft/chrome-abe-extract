@@ -230,15 +230,3 @@ The technique itself is public. The purpose of this repository is to document th
 Running this tool against systems you do not own is a criminal offense in most jurisdictions. The author does not condone, support, or assist with unauthorized use.
 
 ---
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
----
-
-## Author
-
-AdversaryCraft
-
-If you build detection rules or improvements on top of this, open an issue or PR.
