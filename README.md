@@ -94,41 +94,6 @@ The only case where this fails is if the service has been set to **Disabled** (n
 
 ---
 
-## Expected Output
-
-```
-==============================================
-  ChromeABE-Extract - Custom ABE Bypass Tool
-  Authorized lab use only
-==============================================
-
-[+] Already running from Chrome's directory.
-[*] User data: C:\Users\<user>\AppData\Local\Google\Chrome\User Data
-[+] Encrypted key: 64 bytes
-[+] IElevator2 instance created.
-[+] Proxy blanket set (IElevator2).
-[*] Stripped APPB header.
-[+] Master key decrypted: 32 bytes
-
-[*] Extracting data...
-[*] Cookies:    92 total, 92 decrypted
-[*] Passwords:  1 total, 1 decrypted
-[*] Cards:      1 total, 1 decrypted
-[*] IBANs:      0 total, 0 decrypted
-[*] Autofill:   1 total, 1 v20 decrypted
-[+] JSON written to: C:\testing\abe_dump.json
-
-[+] Done.
-    Cookies:   94
-    Passwords: 3
-    Cards:     1
-    IBANs:     0
-    Autofill:  12
-[*] Master key: <32-byte hex>
-```
-
----
-
 ## Common Errors
 
 | HRESULT | Meaning | Fix |
