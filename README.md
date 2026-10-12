@@ -4,7 +4,7 @@ A proof-of-concept demonstrating a path-validation bypass in Chrome's App-Bound 
 
 Extracts and decrypts cookies, passwords, credit cards, IBANs, and autofill data from a Chrome profile by recovering the ABE master key through Chrome's own COM interface.
 
-**Full writeup:** [Bypassing_Chrome’s_App-Bound_Encryption_With_a_File_Copy](https://adversarycraft.com/2026/10/12/bypassing-chromes-app-bound-encryption-with-a-file-copy/)
+**Full writeup:** [Bypassing Chrome's App-Bound Encryption With a File Copy](https://adversarycraft.com/2026/10/12/bypassing-chromes-app-bound-encryption-with-a-file-copy/)
 
 **For authorized security research and lab use only.**
 
