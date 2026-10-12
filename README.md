@@ -4,6 +4,8 @@ A proof-of-concept demonstrating a path-validation bypass in Chrome's App-Bound 
 
 Extracts and decrypts cookies, passwords, credit cards, IBANs, and autofill data from a Chrome profile by recovering the ABE master key through Chrome's own COM interface.
 
+**Full writeup:** [BLOG_POST_TITLE](BLOG_POST_URL)
+
 **For authorized security research and lab use only.**
 
 ---
@@ -77,25 +79,19 @@ copy chrome_abe_extract.exe "C:\Program Files\Google\Chrome\Application\"
 taskkill /F /IM chrome.exe /T
 ```
 
-**Step 3 — Confirm the elevation service is running:**
-
-```cmd
-sc query "GoogleChromeElevationService"
-```
-
-If stopped:
-
-```cmd
-net start "GoogleChromeElevationService"
-```
-
-**Step 4 — Run from a NON-elevated command prompt:**
+**Step 3 — Run from a NON-elevated command prompt:**
 
 ```cmd
 "C:\Program Files\Google\Chrome\Application\chrome_abe_extract.exe"
 ```
 
 Output: `C:\testing\abe_dump.json`
+
+### Note on the elevation service
+
+You do **not** need to manually start `GoogleChromeElevationService` before running the tool. When the tool calls `CoCreateInstance(CLSID_Elevator, ..., CLSCTX_LOCAL_SERVER, ...)`, the Windows Service Control Manager starts the service on demand if it isn't already running. This is standard behavior for COM objects hosted as local services — the registration in the registry tells the SCM how to launch the server, and `CoCreateInstance` triggers it.
+
+The only case where this fails is if the service has been set to **Disabled** (not just Stopped). In that state the SCM refuses to launch it, and `CoCreateInstance` returns an error that propagates as `0x8004a003` at the `DecryptData` call. If you see that error, check the service state with `sc query "GoogleChromeElevationService"` — if it shows `DISABLED`, that's the cause.
 
 ---
 
@@ -139,14 +135,14 @@ Output: `C:\testing\abe_dump.json`
 | HRESULT | Meaning | Fix |
 |---------|---------|-----|
 | `0x8004a004` | Path validation rejected | Run from Chrome's install directory |
-| `0x8004a003` | Service unreachable, or wrong user context | Start the service; run as normal user (not elevated) |
+| `0x8004a003` | Service unreachable, or wrong user context | Check service isn't Disabled; run as normal user (not elevated) |
 | `ERROR_ACCESS_DENIED` | Running elevated | Use a non-elevated prompt |
 
 ### The Three Walls
 
 1. **`0x8004a004`** — ran from `C:\testing\`. The elevation service normalizes the caller's path and compares it against a value baked into the encrypted blob. `C:\testing\` does not match Chrome's install directory. Fixed by running from Chrome's directory. **The filename is irrelevant — only the directory matters.**
 
-2. **`0x8004a003`** — right directory, still failing. The RPC channel between the tool and the elevation service was unauthenticated. Fixed by calling `CoSetProxyBlanket` with `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`, `RPC_C_IMP_LEVEL_IMPERSONATE`, and `EOAC_DYNAMIC_CLOAKING`. Most custom PoCs stall here.
+2. **`0x8004a003`** — right directory, still failing. The RPC channel between the tool and the elevation service was unauthenticated. Fixed by calling `CoSetProxyBlanket` with `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`, `RPC_C_IMP_LEVEL_IMPERSONATE`, and `EOAC_DYNAMIC_CLOAKING`. Most custom PoCs stall here. (This same HRESULT also appears if the service is set to Disabled — different root cause, same code path.)
 
 3. **`ERROR_ACCESS_DENIED`** — running from an elevated prompt. DPAPI binds the master key to the user's logon token. An elevated token has a different context, so DPAPI refuses. Fixed by running as the normal user after copying the binary as Administrator.
 
@@ -189,7 +185,6 @@ None of these alone is damning. Together, they are a clean signature.
 
 - Targets the `Default` profile only
 - Requires Administrator to write to Chrome's install directory (one-time copy)
-- Requires the elevation service to be running
 - Chrome must be closed before extracting from `Login Data` and `Web Data` (SQLite locks)
 - Cookie values in the JSON include a 32-byte SHA-256 prefix; the real value starts at byte 32
 
@@ -218,6 +213,7 @@ chrome-abe-extract/
 
 ## References
 
+- **Blog post:** [BLOG_POST_TITLE](BLOG_POST_URL)
 - CyberArk Labs — C4 Bomb: Blowing Up Chrome's AppBound Cookie Encryption (June 2025) — https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption
 - xaitax — ChromElevator (DLL injection variant) — https://github.com/xaitax/Chrome-App-Bound-Encryption-Decryption
 - Gen Digital — VoidStealer analysis (debugger-based bypass) — https://www.gendigital.com/blog/insights/research/voidstealer-abe-bypass
@@ -243,6 +239,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-[Your Name] — [@yourhandle](https://twitter.com/yourhandle)
+AdversaryCraft
 
 If you build detection rules or improvements on top of this, open an issue or PR.
