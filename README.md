@@ -161,7 +161,7 @@ Verified against Chrome 153 on Windows 11 with **Microsoft Defender for Business
 | End-to-end run | Completed |
 | Alert generated | None |
 
-Defender for Business produced zero alerts at any stage. The absence of behavioral telemetry for COM instantiation and browser profile access means this technique runs clean in environments where Defender for Business is the only endpoint control.
+Defender for Business produced zero alerts at any stage.
 
 **Caveat:** This result is specific to Defender for Business—the SMB SKU designed for companies up to 300 users. It says nothing about Defender for Endpoint Plan 2, which adds KQL-based advanced hunting, 6 months of data retention, and managed threat hunting through Microsoft Threat Experts. It also says nothing about Defender XDR, which correlates endpoint signals with identity, email, and cloud telemetry.
 
