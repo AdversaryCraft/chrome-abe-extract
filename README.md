@@ -16,7 +16,7 @@ Chrome 127 introduced App-Bound Encryption to prevent infostealers from accessin
 
 That validation is directory-based, not identity-based. Any process running from `C:\Program Files\Google\Chrome\Application\` satisfies it, regardless of filename or code signature.
 
-This technique is documented in [CyberArk Labs' C4 research](https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption) (June 2025). The CVE originally assigned to it (CVE-2025-34092) was later rejected by the NVD. The rejection does not change the underlying technical finding — the technique remains functional against Chrome builds with ABE enabled.
+This technique is documented in [CyberArk Labs' C4 research](https://web.archive.org/web/20251116044735/https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption) (June 2025). The CVE originally assigned to it (CVE-2025-34092) was later rejected by the NVD. The rejection does not change the underlying technical finding — the technique remains functional against Chrome builds with ABE enabled.
 
 ---
 
@@ -185,7 +185,6 @@ None of these alone is damning. Together, they are a clean signature.
 - Targets the `Default` profile only
 - Requires Administrator to write to Chrome's install directory (one-time copy)
 - Chrome must be closed before extracting from `Login Data` and `Web Data` (SQLite locks)
-- Cookie values in the JSON include a 32-byte SHA-256 prefix; the real value starts at byte 32
 
 ---
 
@@ -202,21 +201,8 @@ chrome-abe-extract/
 │   └── sqlite3/
 │       ├── sqlite3.c
 │       └── sqlite3.h
-└── screenshots/
-    ├── successful-run.png
-    ├── json-dump.png
-    └── defender-result.png
 ```
 
----
-
-## References
-
-- **Blog post:** [BLOG_POST_TITLE](BLOG_POST_URL)
-- CyberArk Labs — C4 Bomb: Blowing Up Chrome's AppBound Cookie Encryption (June 2025) — https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption
-- xaitax — ChromElevator (DLL injection variant) — https://github.com/xaitax/Chrome-App-Bound-Encryption-Decryption
-- Gen Digital — VoidStealer analysis (debugger-based bypass) — https://www.gendigital.com/blog/insights/research/voidstealer-abe-bypass
-- Google Security Blog — Improving the security of Chrome cookies on Windows — https://security.googleblog.com/2024/07/improving-security-of-chrome-cookies-on.html
 
 ---
 
@@ -227,5 +213,3 @@ This tool is published for defensive research, detection engineering, and securi
 The technique itself is public. The purpose of this repository is to document the bypass so that detection engineers can build rules against it, security teams can assess whether their EDR catches it, and users understand why the ABE control, as implemented, is insufficient.
 
 Running this tool against systems you do not own is a criminal offense in most jurisdictions. The author does not condone, support, or assist with unauthorized use.
-
----
