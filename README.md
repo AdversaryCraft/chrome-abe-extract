@@ -160,7 +160,6 @@ Verified against Chrome 153 on Windows 11 with **Microsoft Defender for Business
 | Reads of `Local State` and DB files | Not detected |
 | End-to-end run | Completed |
 | Alert generated | None |
-| Detection latency | Never |
 
 Defender for Business produced zero alerts at any stage. The absence of behavioral telemetry for COM instantiation and browser profile access means this technique runs clean in environments where Defender for Business is the only endpoint control.
 
