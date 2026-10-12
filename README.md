@@ -44,9 +44,8 @@ This technique is documented in [CyberArk Labs' C4 research](https://web.archive
 
 ## Build
 
-**Prerequisites:** Visual Studio 2022 with the Desktop development with C++ workload, plus the SQLite amalgamation (`sqlite3.c` and `sqlite3.h` from [sqlite.org/download.html](https://www.sqlite.org/download.html)).
-
-Place `sqlite3.c` and `sqlite3.h` in `third_party/sqlite3/`.
+**Prerequisites:** Visual Studio 2022 with the Desktop development with C++ workload, plus the SQLite amalgamation which is already available in this repo (`sqlite3.c` and `sqlite3.h` from [sqlite.org/download.html](https://www.sqlite.org/download.html)).
+.
 
 Open the **x64 Native Tools Command Prompt for VS 2022** and run:
 
@@ -112,11 +111,11 @@ The only case where this fails is if the service has been set to **Disabled** (n
 [+] Master key decrypted: 32 bytes
 
 [*] Extracting data...
-[*] Cookies:    94 total, 94 decrypted
-[*] Passwords:  3 total, 3 decrypted
+[*] Cookies:    92 total, 92 decrypted
+[*] Passwords:  1 total, 1 decrypted
 [*] Cards:      1 total, 1 decrypted
 [*] IBANs:      0 total, 0 decrypted
-[*] Autofill:   12 total, 3 v20 decrypted
+[*] Autofill:   1 total, 1 v20 decrypted
 [+] JSON written to: C:\testing\abe_dump.json
 
 [+] Done.
@@ -138,19 +137,11 @@ The only case where this fails is if the service has been set to **Disabled** (n
 | `0x8004a003` | Service unreachable, or wrong user context | Check service isn't Disabled; run as normal user (not elevated) |
 | `ERROR_ACCESS_DENIED` | Running elevated | Use a non-elevated prompt |
 
-### The Three Walls
-
-1. **`0x8004a004`** — ran from `C:\testing\`. The elevation service normalizes the caller's path and compares it against a value baked into the encrypted blob. `C:\testing\` does not match Chrome's install directory. Fixed by running from Chrome's directory. **The filename is irrelevant — only the directory matters.**
-
-2. **`0x8004a003`** — right directory, still failing. The RPC channel between the tool and the elevation service was unauthenticated. Fixed by calling `CoSetProxyBlanket` with `RPC_C_AUTHN_LEVEL_PKT_PRIVACY`, `RPC_C_IMP_LEVEL_IMPERSONATE`, and `EOAC_DYNAMIC_CLOAKING`. Most custom PoCs stall here. (This same HRESULT also appears if the service is set to Disabled — different root cause, same code path.)
-
-3. **`ERROR_ACCESS_DENIED`** — running from an elevated prompt. DPAPI binds the master key to the user's logon token. An elevated token has a different context, so DPAPI refuses. Fixed by running as the normal user after copying the binary as Administrator.
-
 ---
 
 ## Testing
 
-Verified against Chrome 153 on Windows 11 with **Microsoft Defender for Business** enabled (cloud protection on, no exclusions).
+Verified against Chrome 153 on Windows 11 with **Microsoft Defender for Business** enabled (no exclusions).
 
 | Stage | Result |
 |-------|--------|
